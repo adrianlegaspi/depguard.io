@@ -3,6 +3,7 @@ import { View, Text, ScrollView, Pressable } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Wordmark } from '../../components/Wordmark';
 import { VulnDetail } from '../../components/VulnDetail';
+import { PackageHealth } from '../../components/PackageHealth';
 import { useScanPackage } from '../../hooks/useScanPackage';
 
 export default function VulnDetailScreen() {
@@ -33,7 +34,10 @@ export default function VulnDetailScreen() {
         <View className="w-full lg:max-w-7xl lg:mx-auto px-4 lg:px-8">
           <View className="flex-row items-center gap-3 lg:gap-6 py-3 lg:py-4">
             <Pressable
-              onPress={() => router.back()}
+              onPress={() => router.push({
+                pathname: '/results',
+                params: { name, version, ecosystem, ...(batchJson ? { batchJson } : {}) },
+              })}
               accessibilityRole="button"
               accessibilityLabel={`Back to ${pkgLabel}`}
               className="border-2 border-ink px-3 py-1.5 hover:bg-ink/5 active:bg-ink/10 web:cursor-pointer"
@@ -100,6 +104,9 @@ export default function VulnDetailScreen() {
             </View>
           )}
 
+          {vuln && name && ecosystem && (
+            <PackageHealth name={name} version={version || ''} ecosystem={ecosystem} variant="compact" />
+          )}
           {vuln && <VulnDetail vuln={vuln} />}
 
           <View className="h-8" />

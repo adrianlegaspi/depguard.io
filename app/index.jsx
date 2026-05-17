@@ -22,6 +22,7 @@ import {
   TabsContent,
 } from "../components/ui/tabs";
 import { checkOsvHealth } from "../services/osv";
+import { checkDepsDevHealth } from "../services/depsDev";
 import { fetchRecentAdvisories } from "../services/githubAdvisories";
 import { parseLockfile } from "../lib/lockfile";
 import { cn, severityGlyph } from "../lib/utils";
@@ -59,11 +60,13 @@ export default function HomeScreen() {
   const [pasteText, setPasteText] = React.useState("");
   const [uploadedFile, setUploadedFile] = React.useState(null);
   const [osvOnline, setOsvOnline] = React.useState(null);
+  const [depsDevOnline, setDepsDevOnline] = React.useState(null);
   const [recentPkgs, setRecentPkgs] = React.useState(null);
   const [recentCves, setRecentCves] = React.useState(null);
 
   React.useEffect(() => {
     checkOsvHealth().then((ok) => setOsvOnline(ok));
+    checkDepsDevHealth().then((ok) => setDepsDevOnline(ok));
 
     fetchRecentAdvisories({ severity: "high", perPage: 20 }).then(
       (advisories) => {
@@ -178,11 +181,9 @@ export default function HomeScreen() {
     Linking.openURL(`https://osv.dev/vulnerability/${ghsaId}`).catch(() => {});
   }
 
-  const osvPillState = osvOnline == null
-    ? "checking"
-    : osvOnline
-    ? "online"
-    : "offline";
+  const osvPillState = osvOnline == null ? "checking" : osvOnline ? "online" : "offline";
+  const ddPillState  = depsDevOnline == null ? "checking" : depsDevOnline ? "online" : "offline";
+  const anyOffline   = osvPillState === "offline" || ddPillState === "offline";
 
   return (
     <KeyboardAvoidingView
@@ -196,36 +197,38 @@ export default function HomeScreen() {
           <View
             className={cn(
               "flex-row items-center gap-2 border px-2 py-1",
-              osvPillState === "offline"
-                ? "bg-critical border-critical"
-                : "bg-paper border-ink"
+              anyOffline ? "bg-critical border-critical" : "bg-paper border-ink"
             )}
             accessibilityRole="status"
-            accessibilityLabel={`OSV is ${osvPillState}`}
+            accessibilityLabel={`OSV is ${osvPillState}, deps.dev is ${ddPillState}`}
           >
-            <View
-              className="h-2 w-2 rounded-full"
-              style={{
-                backgroundColor:
-                  osvPillState === "checking"
-                    ? "#888"
-                    : osvPillState === "online"
-                    ? "#00C853"
-                    : "#FFFFFF",
-              }}
-            />
-            <Text
-              className={cn(
-                "font-mono-bold text-[10px] uppercase tracking-eyebrow",
-                osvPillState === "offline" ? "text-paper" : "text-ink"
-              )}
-            >
-              {osvPillState === "checking"
-                ? "Checking"
-                : osvPillState === "online"
-                ? "OSV Online"
-                : "OSV Offline"}
-            </Text>
+            <View className="flex-row items-center gap-1">
+              <View
+                className="h-2 w-2 rounded-full"
+                style={{
+                  backgroundColor:
+                    osvPillState === "checking" ? "#888" :
+                    osvPillState === "online"   ? "#00C853" : "#FFFFFF",
+                }}
+              />
+              <Text className={cn("font-mono-bold text-[10px] uppercase tracking-eyebrow", anyOffline ? "text-paper" : "text-ink")}>
+                OSV
+              </Text>
+            </View>
+            <Text className={cn("font-mono text-[10px]", anyOffline ? "text-paper/40" : "text-muted")}>·</Text>
+            <View className="flex-row items-center gap-1">
+              <View
+                className="h-2 w-2 rounded-full"
+                style={{
+                  backgroundColor:
+                    ddPillState === "checking" ? "#888" :
+                    ddPillState === "online"   ? "#00C853" : "#FFFFFF",
+                }}
+              />
+              <Text className={cn("font-mono-bold text-[10px] uppercase tracking-eyebrow", anyOffline ? "text-paper" : "text-ink")}>
+                deps.dev
+              </Text>
+            </View>
           </View>
         </View>
       </View>
@@ -362,9 +365,12 @@ export default function HomeScreen() {
                 </Text>
               </View>
               <View className="flex-1 px-6 py-5 border-r-2 border-ink">
-                <Text className="font-display text-3xl text-ink">OSV+GHSA</Text>
+                <Text className="font-display text-3xl text-ink">3</Text>
                 <Text className="font-mono-bold text-[10px] text-muted uppercase tracking-eyebrow mt-1">
                   Sources
+                </Text>
+                <Text className="font-mono text-[10px] text-muted mt-0.5">
+                  OSV · GHSA · deps.dev
                 </Text>
               </View>
               <View className="flex-1 px-6 py-5 border-r-2 border-ink">

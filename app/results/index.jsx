@@ -14,6 +14,8 @@ import { Badge } from '../../components/ui/badge';
 import { Input } from '../../components/ui/input';
 import { Select } from '../../components/ui/select';
 import { useScanPackage } from '../../hooks/useScanPackage';
+import { usePackageHealth } from '../../hooks/usePackageHealth';
+import { PackageHealth } from '../../components/PackageHealth';
 import { cn, severityGlyph } from '../../lib/utils';
 
 const FILTERS = ['ALL', 'CRITICAL', 'HIGH', 'MEDIUM', 'LOW'];
@@ -94,15 +96,18 @@ export default function ResultsScreen() {
   const { name, version, ecosystem, batchJson } = params;
 
   const { data: result, error, isLoading } = useScanPackage({ name, version, ecosystem, batchJson });
+  const { data: health } = usePackageHealth(
+    !batchJson && name && ecosystem ? { name, version, ecosystem } : {}
+  );
 
   const [filter, setFilter] = React.useState('ALL');
   const [searchText, setSearchText] = React.useState('');
   const [sortBy, setSortBy] = React.useState('severity');
 
-  const filteredVulns = React.useMemo(() => {
-    if (!result) return [];
+  const { fixedVulns, unfixedVulns } = React.useMemo(() => {
+    if (!result) return { fixedVulns: [], unfixedVulns: [] };
     const q = searchText.trim().toLowerCase();
-    return result.vulns
+    const sorted = result.vulns
       .filter(v => {
         if (filter !== 'ALL' && v.cvss.severity !== filter) return false;
         if (q) {
@@ -120,7 +125,13 @@ export default function ResultsScreen() {
         if (rankDiff !== 0) return rankDiff;
         return (b.cvss.score ?? 0) - (a.cvss.score ?? 0);
       });
+    return {
+      fixedVulns:   sorted.filter(v => v.fixedVersion),
+      unfixedVulns: sorted.filter(v => !v.fixedVersion),
+    };
   }, [result, filter, searchText, sortBy]);
+
+  const visibleCount = fixedVulns.length + unfixedVulns.length;
 
   const isBatch = !!batchJson;
 
@@ -269,6 +280,11 @@ export default function ResultsScreen() {
               {/* Recommended Upgrade Banner */}
               {!isBatch && totalVulns > 0 && <RecommendedUpgrade result={result} />}
 
+              {/* Package Health (deps.dev enrichment) */}
+              {!isBatch && (
+                <PackageHealth name={result.name} version={result.version} ecosystem={result.ecosystem} />
+              )}
+
               {/* Batch Package Strip */}
               {isBatch && batchPackages && (
                 <View className="border-b-2 border-ink px-4 lg:px-6 py-4">
@@ -315,7 +331,7 @@ export default function ResultsScreen() {
                     ID: {result.scanId}
                   </Text>
                   <Text className="font-mono text-[10px] text-muted uppercase tracking-eyebrow">
-                    Src: OSV.dev
+                    Src: OSV.dev{!isBatch && health ? ' + deps.dev' : ''}
                   </Text>
                 </View>
                 <SpeedBlocks durationMs={result.durationMs} />
@@ -430,13 +446,13 @@ export default function ResultsScreen() {
                   </View>
                 </View>
                 <Text className="hidden lg:flex font-mono text-xs text-muted tabular-nums">
-                  {filteredVulns.length} of {totalVulns} shown
+                  {visibleCount} of {totalVulns} shown
                 </Text>
               </View>
 
-              {/* Vuln List */}
+              {/* Vuln List — split into FIXED / UNFIXED sections */}
               <View>
-                {filteredVulns.length === 0 ? (
+                {visibleCount === 0 ? (
                   <View className="items-center py-12 lg:py-20">
                     <Text className="font-display text-2xl lg:text-5xl text-success">✓</Text>
                     <Text className="font-mono-bold text-sm lg:text-base text-ink mt-2 lg:mt-4 uppercase tracking-widest">
@@ -454,13 +470,51 @@ export default function ResultsScreen() {
                     )}
                   </View>
                 ) : (
-                  filteredVulns.map(vuln => (
-                    <VulnRow
-                      key={vuln.id}
-                      vuln={vuln}
-                      onPress={() => openVuln(vuln)}
+                  <>
+                    <SectionHeader
+                      title="Fixed"
+                      subtitle={`${fixedVulns.length} addressed ${fixedVulns.length === 1 ? 'CVE' : 'CVEs'}`}
+                      count={fixedVulns.length}
+                      tone="success"
                     />
-                  ))
+                    {fixedVulns.length === 0 ? (
+                      <View className="px-4 lg:px-6 py-3 border-b border-divider">
+                        <Text className="font-mono text-xs text-muted">
+                          No CVEs in this view have a fix available yet.
+                        </Text>
+                      </View>
+                    ) : (
+                      fixedVulns.map(vuln => (
+                        <VulnRow
+                          key={vuln.id}
+                          vuln={vuln}
+                          onPress={() => openVuln(vuln)}
+                        />
+                      ))
+                    )}
+
+                    <SectionHeader
+                      title="Unfixed"
+                      subtitle={`${unfixedVulns.length} no fix available`}
+                      count={unfixedVulns.length}
+                      tone="critical"
+                    />
+                    {unfixedVulns.length === 0 ? (
+                      <View className="px-4 lg:px-6 py-3 border-b border-divider">
+                        <Text className="font-mono text-xs text-muted">
+                          Every CVE in this view has been addressed.
+                        </Text>
+                      </View>
+                    ) : (
+                      unfixedVulns.map(vuln => (
+                        <VulnRow
+                          key={vuln.id}
+                          vuln={vuln}
+                          onPress={() => openVuln(vuln)}
+                        />
+                      ))
+                    )}
+                  </>
                 )}
               </View>
 
@@ -469,6 +523,29 @@ export default function ResultsScreen() {
           </View>
         </ScrollView>
       )}
+    </View>
+  );
+}
+
+function SectionHeader({ title, subtitle, count, tone }) {
+  return (
+    <View className="bg-ink/[0.03] border-b-2 border-ink px-4 lg:px-6 py-2.5 flex-row items-center justify-between">
+      <View className="flex-row items-center gap-2">
+        <Text
+          className={cn(
+            'font-mono-bold text-[10px] uppercase tracking-eyebrow',
+            tone === 'success' ? 'text-success' : 'text-critical'
+          )}
+        >
+          {title}
+        </Text>
+        <Text className="font-mono text-[10px] text-muted uppercase tracking-eyebrow">
+          · {subtitle}
+        </Text>
+      </View>
+      <Text className="font-mono text-[10px] text-muted tabular-nums">
+        {count}
+      </Text>
     </View>
   );
 }
