@@ -1,0 +1,498 @@
+import * as React from 'react';
+import {
+  View,
+  Text,
+  ScrollView,
+  Pressable,
+} from 'react-native';
+import { useLocalSearchParams, useRouter } from 'expo-router';
+import { Wordmark } from '../../components/Wordmark';
+import { VulnRow } from '../../components/VulnRow';
+import { RecommendedUpgrade } from '../../components/RecommendedUpgrade';
+import { SpeedBlocks } from '../../components/SpeedBlocks';
+import { Badge } from '../../components/ui/badge';
+import { Input } from '../../components/ui/input';
+import { Select } from '../../components/ui/select';
+import { useScanPackage } from '../../hooks/useScanPackage';
+import { cn, severityGlyph } from '../../lib/utils';
+
+const FILTERS = ['ALL', 'CRITICAL', 'HIGH', 'MEDIUM', 'LOW'];
+
+const SEV_RANK = {
+  CRITICAL: 4,
+  HIGH:     3,
+  MEDIUM:   2,
+  LOW:      1,
+  NONE:     0,
+};
+
+const SORT_OPTIONS = [
+  { label: 'Severity (high → low)', value: 'severity' },
+  { label: 'Newest first', value: 'date_desc' },
+  { label: 'Oldest first', value: 'date_asc' },
+];
+
+const ECO_LABEL = {
+  npm: 'npm registry',
+  PyPI: 'Python Package Index',
+  Go: 'Go module proxy',
+  Maven: 'Maven Central',
+  RubyGems: 'RubyGems',
+  'crates.io': 'crates.io',
+  NuGet: 'NuGet gallery',
+  Packagist: 'Packagist',
+};
+
+function SkeletonRow({ i }) {
+  return (
+    <View className="flex-row items-stretch border-b border-divider">
+      <View className="w-2 bg-divider-strong" />
+      <View className="flex-1 px-3 py-3 gap-2">
+        <View className="h-3 w-32 bg-divider" />
+        <View className="h-2 w-3/4 bg-divider" />
+      </View>
+    </View>
+  );
+}
+
+function ScanLoading({ name }) {
+  return (
+    <ScrollView className="flex-1">
+      <View className="w-full lg:max-w-7xl lg:mx-auto lg:flex-row lg:items-start lg:border-l-2 lg:border-r-2 lg:border-ink">
+        <View className="lg:w-[360px] xl:w-[400px] lg:border-r-2 lg:border-ink lg:self-stretch">
+          <View className="px-4 lg:px-6 py-4 lg:py-5 border-b-2 border-ink gap-2">
+            <View className="h-6 w-48 bg-divider" />
+            <View className="h-3 w-20 bg-divider" />
+          </View>
+          <View className="bg-ink/5 px-6 py-8 border-b-2 border-ink">
+            <Text className="font-mono-bold text-[10px] text-muted uppercase tracking-eyebrow">
+              Scanning {name}…
+            </Text>
+            <View className="h-1 w-full bg-divider mt-3 overflow-hidden">
+              <View className="h-full w-1/3 bg-ink" />
+            </View>
+          </View>
+        </View>
+        <View className="lg:flex-1 lg:self-stretch">
+          <View className="flex-row border-b-2 border-ink" style={{ flexGrow: 0, flexShrink: 0 }}>
+            {[0, 1, 2, 3, 4].map(i => (
+              <View key={i} className={cn('flex-1 px-4 py-3', i < 4 && 'border-r-2 border-ink')}>
+                <View className="h-3 w-12 bg-divider" />
+              </View>
+            ))}
+          </View>
+          {[0, 1, 2, 3, 4].map(i => <SkeletonRow key={i} i={i} />)}
+        </View>
+      </View>
+    </ScrollView>
+  );
+}
+
+export default function ResultsScreen() {
+  const router = useRouter();
+  const params = useLocalSearchParams();
+  const { name, version, ecosystem, batchJson } = params;
+
+  const { data: result, error, isLoading } = useScanPackage({ name, version, ecosystem, batchJson });
+
+  const [filter, setFilter] = React.useState('ALL');
+  const [searchText, setSearchText] = React.useState('');
+  const [sortBy, setSortBy] = React.useState('severity');
+
+  const filteredVulns = React.useMemo(() => {
+    if (!result) return [];
+    const q = searchText.trim().toLowerCase();
+    return result.vulns
+      .filter(v => {
+        if (filter !== 'ALL' && v.cvss.severity !== filter) return false;
+        if (q) {
+          const idMatch = v.id.toLowerCase().includes(q);
+          const summaryMatch = v.summary.toLowerCase().includes(q);
+          const aliasMatch = v.aliases?.some(a => a.toLowerCase().includes(q));
+          if (!idMatch && !summaryMatch && !aliasMatch) return false;
+        }
+        return true;
+      })
+      .sort((a, b) => {
+        if (sortBy === 'date_desc') return new Date(b.published) - new Date(a.published);
+        if (sortBy === 'date_asc')  return new Date(a.published) - new Date(b.published);
+        const rankDiff = (SEV_RANK[b.cvss.severity] ?? 0) - (SEV_RANK[a.cvss.severity] ?? 0);
+        if (rankDiff !== 0) return rankDiff;
+        return (b.cvss.score ?? 0) - (a.cvss.score ?? 0);
+      });
+  }, [result, filter, searchText, sortBy]);
+
+  const isBatch = !!batchJson;
+
+  const batchPackages = React.useMemo(() => {
+    if (!batchJson) return null;
+    try { return JSON.parse(batchJson); } catch { return null; }
+  }, [batchJson]);
+
+  const totalVulns = result ? result.vulns.length : 0;
+
+  function openVuln(vuln) {
+    router.push({
+      pathname: '/results/[id]',
+      params: { id: vuln.id, name, version: version ?? '', ecosystem, batchJson: batchJson ?? '' },
+    });
+  }
+
+  return (
+    <View className="flex-1 bg-paper">
+      {/* Sticky Header — global controls only (no widget-level filter) */}
+      <View className="border-b-2 border-ink bg-paper">
+        <View className="w-full lg:max-w-7xl lg:mx-auto px-4 lg:px-8">
+          <View className="flex-row items-center gap-3 lg:gap-6 py-3 lg:py-4">
+            <Pressable
+              onPress={() => router.back()}
+              accessibilityRole="button"
+              accessibilityLabel="Back to home"
+              className="border-2 border-ink px-3 py-1.5 hover:bg-ink/5 active:bg-ink/10 web:cursor-pointer"
+            >
+              <Text className="font-mono-bold text-xs text-ink uppercase tracking-widest">← Back</Text>
+            </Pressable>
+            <Wordmark size="sm" className="lg:hidden flex-1" />
+            <Wordmark size="md" className="hidden lg:flex" />
+          </View>
+        </View>
+      </View>
+
+      {isLoading && <ScanLoading name={name} />}
+
+      {error && (
+        <View className="flex-1 items-center justify-center px-6">
+          <Text className="font-display text-3xl text-critical mb-2">!</Text>
+          <Text className="font-mono-bold text-sm text-critical mb-2 uppercase tracking-widest">SCAN FAILED</Text>
+          <Text className="font-mono text-sm text-ink text-center">{error.message ?? String(error)}</Text>
+          <Pressable
+            onPress={() => router.back()}
+            accessibilityRole="button"
+            className="mt-4 border-2 border-ink px-4 py-2 hover:bg-ink/5 active:bg-ink/10 web:cursor-pointer"
+          >
+            <Text className="font-mono-bold text-xs uppercase text-ink tracking-widest">Try Again</Text>
+          </Pressable>
+        </View>
+      )}
+
+      {!isLoading && !error && result && (
+        <ScrollView className="flex-1">
+          <View className="w-full lg:max-w-7xl lg:mx-auto lg:flex-row lg:items-start lg:border-l-2 lg:border-r-2 lg:border-ink">
+
+            {/* === LEFT SIDEBAR === */}
+            <View className="lg:w-[360px] xl:w-[400px] lg:border-r-2 lg:border-ink lg:self-stretch">
+
+              {/* Breadcrumb */}
+              <View className="flex-row items-center px-4 lg:px-6 py-3 border-b border-divider">
+                <Text className="font-mono text-[10px] text-muted uppercase tracking-eyebrow" numberOfLines={1}>
+                  Scanner / {result.ecosystem} / {result.name}
+                  {result.version ? ` / v${result.version}` : ''}
+                </Text>
+              </View>
+
+              {/* Package Header */}
+              <View className="px-4 lg:px-6 py-4 lg:py-5 border-b-2 border-ink">
+                <View className="flex-row items-start justify-between gap-3">
+                  <View className="flex-1 min-w-0">
+                    <Text
+                      className="font-display text-2xl lg:text-3xl text-ink"
+                      style={{ letterSpacing: -0.3 }}
+                      numberOfLines={2}
+                    >
+                      {result.name}{result.version ? `@${result.version}` : ''}
+                    </Text>
+                    <Text className="font-mono-bold text-[10px] text-ink uppercase tracking-eyebrow mt-2">
+                      {result.ecosystem}
+                    </Text>
+                    <Text className="font-mono text-xs text-muted mt-0.5">
+                      Scanned via {ECO_LABEL[result.ecosystem] ?? result.ecosystem}
+                    </Text>
+                  </View>
+                  <Badge variant={totalVulns > 0 ? 'filled' : 'success'}>
+                    {totalVulns} {totalVulns === 1 ? 'VULN' : 'VULNS'}
+                  </Badge>
+                </View>
+              </View>
+
+              {/* Mobile stats — 2 rows: total bar + 4-col counts */}
+              <View className="lg:hidden border-b-2 border-ink">
+                <View className={cn(
+                  'flex-row items-center justify-between px-4 py-3 border-b-2 border-ink',
+                  totalVulns > 0 ? 'bg-critical' : 'bg-success'
+                )}>
+                  <Text className="font-mono-bold text-[10px] text-paper uppercase tracking-eyebrow">
+                    Total
+                  </Text>
+                  <Text className="font-display text-3xl text-paper tabular-nums">{totalVulns}</Text>
+                </View>
+                <View className="flex-row">
+                  {[
+                    { label: 'Critical', count: result.critical, key: 'critical', color: 'text-critical' },
+                    { label: 'High',     count: result.high,     key: 'high',     color: 'text-high' },
+                    { label: 'Medium',   count: result.medium,   key: 'medium',   color: 'text-ink' },
+                    { label: 'Low',      count: result.low,      key: 'low',      color: 'text-low' },
+                  ].map(({ label, count, key, color }, i) => (
+                    <View
+                      key={key}
+                      className={cn('flex-1 items-center py-3', i < 3 && 'border-r-2 border-ink')}
+                    >
+                      <Text className={cn('font-display text-xl tabular-nums', color)}>{count}</Text>
+                      <Text className="font-mono-bold text-[10px] text-muted uppercase tracking-eyebrow mt-0.5">
+                        {label}
+                      </Text>
+                    </View>
+                  ))}
+                </View>
+              </View>
+
+              {/* Desktop stats: total banner + 2x2 grid with proportion bars */}
+              <View className="hidden lg:flex border-b-2 border-ink">
+                <View className={cn(
+                  'px-6 py-6 border-b-2 border-ink',
+                  totalVulns > 0 ? 'bg-critical' : 'bg-success',
+                )}>
+                  <Text className="font-display text-5xl text-paper tabular-nums">{totalVulns}</Text>
+                  <Text className="font-mono-bold text-[10px] text-paper uppercase tracking-eyebrow mt-1">
+                    {totalVulns === 1 ? 'Vulnerability' : 'Vulnerabilities'}
+                  </Text>
+                </View>
+                <View className="flex-row">
+                  <StatCell label="Critical" count={result.critical} total={totalVulns} color="bg-critical" textColor="text-critical" borderRight borderBottom />
+                  <StatCell label="High" count={result.high} total={totalVulns} color="bg-high" textColor="text-high" borderBottom />
+                </View>
+                <View className="flex-row">
+                  <StatCell label="Medium" count={result.medium} total={totalVulns} color="bg-medium" textColor="text-ink" borderRight />
+                  <StatCell label="Low" count={result.low} total={totalVulns} color="bg-low" textColor="text-low" />
+                </View>
+              </View>
+
+              {/* Recommended Upgrade Banner */}
+              {!isBatch && totalVulns > 0 && <RecommendedUpgrade result={result} />}
+
+              {/* Batch Package Strip */}
+              {isBatch && batchPackages && (
+                <View className="border-b-2 border-ink px-4 lg:px-6 py-4">
+                  <Text className="font-mono-bold text-[10px] text-ink uppercase tracking-eyebrow mb-3">
+                    Packages scanned ({batchPackages.length})
+                  </Text>
+                  <View className="lg:hidden">
+                    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerClassName="flex-row gap-2">
+                      {batchPackages.slice(0, 10).map((p, i) => (
+                        <View key={i} className="border border-ink px-2 py-1 mr-2">
+                          <Text className="font-mono-bold text-xs text-ink">{p.name}</Text>
+                          <Text className="font-mono text-[10px] text-muted uppercase tracking-eyebrow">
+                            {p.ecosystem}{p.version ? ` · ${p.version}` : ''}
+                          </Text>
+                        </View>
+                      ))}
+                      {batchPackages.length > 10 && (
+                        <View className="border border-divider-strong px-2 py-1 justify-center">
+                          <Text className="font-mono text-xs text-muted">+{batchPackages.length - 10} more</Text>
+                        </View>
+                      )}
+                    </ScrollView>
+                  </View>
+                  <View className="hidden lg:flex gap-1.5">
+                    {batchPackages.slice(0, 12).map((p, i) => (
+                      <View key={i} className="border border-ink px-2 py-1.5">
+                        <Text className="font-mono-bold text-xs text-ink" numberOfLines={1}>{p.name}</Text>
+                        <Text className="font-mono text-[10px] text-muted uppercase tracking-eyebrow">
+                          {p.ecosystem}{p.version ? ` · ${p.version}` : ''}
+                        </Text>
+                      </View>
+                    ))}
+                    {batchPackages.length > 12 && (
+                      <Text className="font-mono text-xs text-muted mt-1">+{batchPackages.length - 12} more</Text>
+                    )}
+                  </View>
+                </View>
+              )}
+
+              {/* Scan Meta */}
+              <View className="px-4 lg:px-6 py-3 border-b border-divider bg-paper gap-2">
+                <View className="flex-row items-center gap-4 lg:gap-0 lg:flex-col lg:items-start lg:gap-2">
+                  <Text className="font-mono text-[10px] text-muted uppercase tracking-eyebrow tabular-nums">
+                    ID: {result.scanId}
+                  </Text>
+                  <Text className="font-mono text-[10px] text-muted uppercase tracking-eyebrow">
+                    Src: OSV.dev
+                  </Text>
+                </View>
+                <SpeedBlocks durationMs={result.durationMs} />
+              </View>
+            </View>
+
+            {/* === RIGHT MAIN === */}
+            <View className="lg:flex-1 lg:self-stretch">
+
+              {/* Widget-level filter — lives with the list it filters, not in the global header */}
+              <View
+                className="flex-row items-center gap-3 border-b-2 border-ink px-4 lg:px-6"
+                style={{ flexGrow: 0, flexShrink: 0 }}
+              >
+                <Text className="font-mono-bold text-[10px] text-ink uppercase tracking-eyebrow">
+                  Filter
+                </Text>
+                <Input
+                  value={searchText}
+                  onChangeText={setSearchText}
+                  placeholder="CVE ID, alias, or keyword…"
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  accessibilityLabel="Filter vulnerabilities by CVE ID, alias, or keyword"
+                  className="flex-1 border-0 px-0 py-2.5"
+                />
+                {searchText.length > 0 && (
+                  <Pressable
+                    onPress={() => setSearchText('')}
+                    accessibilityRole="button"
+                    accessibilityLabel="Clear filter"
+                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                    className="border border-ink px-2 py-0.5 web:cursor-pointer hover:bg-ink/5 active:bg-ink/10"
+                  >
+                    <Text className="font-mono-bold text-[10px] text-ink">✕</Text>
+                  </Pressable>
+                )}
+              </View>
+
+              {/* Severity filter tabs — compact strip, content-height */}
+              <View
+                className="flex-row border-b-2 border-ink"
+                style={{ flexGrow: 0, flexShrink: 0 }}
+              >
+                {FILTERS.map((f, idx) => {
+                  const active = filter === f;
+                  const count = f === 'ALL' ? totalVulns : (result[f.toLowerCase()] ?? 0);
+                  return (
+                    <Pressable
+                      key={f}
+                      onPress={() => setFilter(f)}
+                      accessibilityRole="button"
+                      accessibilityState={{ selected: active }}
+                      accessibilityLabel={`Filter ${f}, ${count} vulnerabilities`}
+                      className={cn(
+                        'flex-row items-center gap-1.5 h-11 lg:h-12 px-3 lg:px-5 web:cursor-pointer',
+                        idx < FILTERS.length - 1 && 'border-r border-divider',
+                        active ? 'bg-ink' : 'bg-paper hover:bg-ink/5 active:bg-ink/10'
+                      )}
+                    >
+                      {f !== 'ALL' && (
+                        <Text
+                          className={cn(
+                            'font-mono-bold text-xs',
+                            active ? 'text-paper' : (
+                              f === 'CRITICAL' ? 'text-critical' :
+                              f === 'HIGH' ? 'text-high' :
+                              f === 'MEDIUM' ? 'text-ink' :
+                              f === 'LOW' ? 'text-low' : 'text-muted'
+                            )
+                          )}
+                          accessibilityElementsHidden
+                          importantForAccessibility="no"
+                        >
+                          {severityGlyph(f)}
+                        </Text>
+                      )}
+                      <Text
+                        className={cn(
+                          'font-mono-bold text-xs uppercase tracking-widest',
+                          active ? 'text-paper' : 'text-ink'
+                        )}
+                      >
+                        {f}
+                      </Text>
+                      <Text
+                        className={cn(
+                          'font-mono text-[10px] tabular-nums',
+                          active ? 'text-paper/70' : 'text-muted'
+                        )}
+                      >
+                        ({count})
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+
+              {/* Sort Row */}
+              <View className="flex-row items-center justify-between border-b border-divider px-4 lg:px-6 py-3 gap-3">
+                <View className="flex-row items-center gap-3 flex-1">
+                  <Text className="font-mono-bold text-[10px] text-ink uppercase tracking-eyebrow">
+                    Sort
+                  </Text>
+                  <View className="flex-1 max-w-[240px]">
+                    <Select
+                      value={sortBy}
+                      onValueChange={setSortBy}
+                      options={SORT_OPTIONS}
+                      accessibilityLabel="Sort vulnerabilities"
+                    />
+                  </View>
+                </View>
+                <Text className="hidden lg:flex font-mono text-xs text-muted tabular-nums">
+                  {filteredVulns.length} of {totalVulns} shown
+                </Text>
+              </View>
+
+              {/* Vuln List */}
+              <View>
+                {filteredVulns.length === 0 ? (
+                  <View className="items-center py-12 lg:py-20">
+                    <Text className="font-display text-2xl lg:text-5xl text-success">✓</Text>
+                    <Text className="font-mono-bold text-sm lg:text-base text-ink mt-2 lg:mt-4 uppercase tracking-widest">
+                      {totalVulns === 0 ? 'No vulnerabilities found' : 'No results match filter'}
+                    </Text>
+                    {totalVulns === 0 && (
+                      <View className="items-center mt-2 lg:mt-3 gap-1">
+                        <Text className="font-mono text-xs lg:text-sm text-muted">
+                          {result.name} looks clean according to OSV.dev
+                        </Text>
+                        <Text className="font-mono text-[10px] text-muted uppercase tracking-eyebrow tabular-nums">
+                          Scan ID {result.scanId} · {result.durationMs}ms
+                        </Text>
+                      </View>
+                    )}
+                  </View>
+                ) : (
+                  filteredVulns.map(vuln => (
+                    <VulnRow
+                      key={vuln.id}
+                      vuln={vuln}
+                      onPress={() => openVuln(vuln)}
+                    />
+                  ))
+                )}
+              </View>
+
+              <View className="h-8" />
+            </View>
+          </View>
+        </ScrollView>
+      )}
+    </View>
+  );
+}
+
+function StatCell({ label, count, total, color, textColor, borderRight, borderBottom }) {
+  const pct = total > 0 ? Math.round((count / total) * 100) : 0;
+  return (
+    <View
+      className={cn(
+        'flex-1 px-6 py-4',
+        borderRight && 'border-r-2 border-ink',
+        borderBottom && 'border-b-2 border-ink'
+      )}
+    >
+      <Text className={cn('font-display text-2xl tabular-nums', textColor)}>{count}</Text>
+      <Text className="font-mono-bold text-[10px] text-muted uppercase tracking-eyebrow mt-1">
+        {label}
+      </Text>
+      <View className="h-1 w-full bg-divider mt-2">
+        <View
+          className={cn('h-full', color)}
+          style={{ width: `${pct}%` }}
+        />
+      </View>
+    </View>
+  );
+}

@@ -1,0 +1,55 @@
+# Dependencies
+node_modules/
+pnpm-lock.yaml
+yarn.lock
+package-lock.json
+
+# Expo
+.expo/
+.expo-shared/
+dist/
+.expo-shared/
+
+# Build artifacts
+build/
+.ipa
+.apk
+*.jks
+*.keystore
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# OS
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+
+# Runtime
+*.jsbundle
+
+# Metro bundler
+.metro-health-check*
+
+# Misc
+.claude/

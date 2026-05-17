@@ -1,0 +1,43 @@
+{
+  "name": "depguard",
+  "version": "1.0.0",
+  "main": "expo-router/entry",
+  "scripts": {
+    "start": "expo start --port 1212",
+    "android": "expo start --android --port 1212",
+    "ios": "expo start --ios --port 1212",
+    "web": "expo start --web --port 1212"
+  },
+  "dependencies": {
+    "@babel/runtime": "^7.29.2",
+    "@expo-google-fonts/jetbrains-mono": "^0.3.0",
+    "@expo-google-fonts/space-grotesk": "^0.3.0",
+    "@expo/metro-runtime": "~4.0.0",
+    "@react-navigation/native": "^7.2.4",
+    "class-variance-authority": "^0.7.0",
+    "clsx": "^2.1.1",
+    "expo": "~52.0.0",
+    "expo-constants": "~17.0.8",
+    "expo-document-picker": "~13.0.3",
+    "expo-font": "~13.0.0",
+    "expo-linking": "~7.0.0",
+    "expo-router": "~4.0.0",
+    "expo-status-bar": "~2.0.0",
+    "nativewind": "^4.0.36",
+    "react": "18.3.1",
+    "react-dom": "18.3.1",
+    "react-native": "0.76.9",
+    "react-native-css-interop": "^0.2.3",
+    "react-native-markdown-display": "^7.0.2",
+    "react-native-safe-area-context": "4.12.0",
+    "react-native-screens": "~4.4.0",
+    "react-native-web": "~0.19.13",
+    "swr": "^2.4.1",
+    "tailwind-merge": "^2.5.4",
+    "tailwindcss": "3.4.15"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.25.0",
+    "babel-preset-expo": "~12.0.0"
+  }
+}
