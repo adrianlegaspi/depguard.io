@@ -4,6 +4,8 @@ import {
   Text,
   ScrollView,
   Pressable,
+  Animated,
+  Easing,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Wordmark } from '../../components/Wordmark';
@@ -45,7 +47,7 @@ const ECO_LABEL = {
   Packagist: 'Packagist',
 };
 
-function SkeletonRow({ i }) {
+function SkeletonRow() {
   return (
     <View className="flex-row items-stretch border-b border-divider">
       <View className="w-2 bg-divider-strong" />
@@ -57,33 +59,118 @@ function SkeletonRow({ i }) {
   );
 }
 
+function IndeterminateBar() {
+  const translate = React.useRef(new Animated.Value(0)).current;
+  React.useEffect(() => {
+    const loop = Animated.loop(
+      Animated.timing(translate, {
+        toValue: 1,
+        duration: 1200,
+        easing: Easing.inOut(Easing.ease),
+        useNativeDriver: true,
+      })
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [translate]);
+  const translateX = translate.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['-100%', '300%'],
+  });
+  return (
+    <View className="h-1 w-full bg-divider mt-3 overflow-hidden">
+      <Animated.View style={{ height: '100%', width: '33%', backgroundColor: '#0a0a0a', transform: [{ translateX }] }} />
+    </View>
+  );
+}
+
 function ScanLoading({ name }) {
   return (
     <ScrollView className="flex-1">
       <View className="w-full lg:max-w-7xl lg:mx-auto lg:flex-row lg:items-start lg:border-l-2 lg:border-r-2 lg:border-ink">
+        {/* === LEFT SIDEBAR SKELETON === */}
         <View className="lg:w-[360px] xl:w-[400px] lg:border-r-2 lg:border-ink lg:self-stretch">
-          <View className="px-4 lg:px-6 py-4 lg:py-5 border-b-2 border-ink gap-2">
-            <View className="h-6 w-48 bg-divider" />
-            <View className="h-3 w-20 bg-divider" />
+          <View className="flex-row items-center px-4 lg:px-6 py-3 border-b border-divider">
+            <View className="h-2 w-40 bg-divider" />
           </View>
-          <View className="bg-ink/5 px-6 py-8 border-b-2 border-ink">
+          <View className="px-4 lg:px-6 py-4 lg:py-5 border-b-2 border-ink gap-2">
+            <View className="h-7 w-56 bg-divider" />
+            <View className="h-3 w-20 bg-divider mt-1" />
+            <View className="h-2 w-32 bg-divider" />
+          </View>
+          <View className="bg-ink/5 px-4 lg:px-6 py-6 border-b-2 border-ink">
             <Text className="font-mono-bold text-[10px] text-muted uppercase tracking-eyebrow">
-              Scanning {name}…
+              Scanning {name ?? 'package'}…
             </Text>
-            <View className="h-1 w-full bg-divider mt-3 overflow-hidden">
-              <View className="h-full w-1/3 bg-ink" />
+            <Text className="font-mono text-[10px] text-muted mt-1">
+              Querying OSV.dev + deps.dev
+            </Text>
+            <IndeterminateBar />
+          </View>
+          <View className="hidden lg:flex border-b-2 border-ink">
+            <View className="bg-ink/5 px-6 py-6 border-b-2 border-ink gap-2">
+              <View className="h-10 w-14 bg-divider" />
+              <View className="h-2 w-24 bg-divider" />
+            </View>
+            <View className="flex-row">
+              <View className="flex-1 border-r-2 border-b-2 border-ink px-6 py-4 gap-2">
+                <View className="h-6 w-8 bg-divider" />
+                <View className="h-2 w-16 bg-divider" />
+                <View className="h-1 w-full bg-divider mt-1" />
+              </View>
+              <View className="flex-1 border-b-2 border-ink px-6 py-4 gap-2">
+                <View className="h-6 w-8 bg-divider" />
+                <View className="h-2 w-16 bg-divider" />
+                <View className="h-1 w-full bg-divider mt-1" />
+              </View>
+            </View>
+            <View className="flex-row">
+              <View className="flex-1 border-r-2 border-ink px-6 py-4 gap-2">
+                <View className="h-6 w-8 bg-divider" />
+                <View className="h-2 w-16 bg-divider" />
+                <View className="h-1 w-full bg-divider mt-1" />
+              </View>
+              <View className="flex-1 px-6 py-4 gap-2">
+                <View className="h-6 w-8 bg-divider" />
+                <View className="h-2 w-16 bg-divider" />
+                <View className="h-1 w-full bg-divider mt-1" />
+              </View>
             </View>
           </View>
-        </View>
-        <View className="lg:flex-1 lg:self-stretch">
-          <View className="flex-row border-b-2 border-ink" style={{ flexGrow: 0, flexShrink: 0 }}>
-            {[0, 1, 2, 3, 4].map(i => (
-              <View key={i} className={cn('flex-1 px-4 py-3', i < 4 && 'border-r-2 border-ink')}>
-                <View className="h-3 w-12 bg-divider" />
+          <View className="lg:hidden flex-row border-b-2 border-ink">
+            {[0, 1, 2, 3].map(i => (
+              <View key={i} className={cn('flex-1 items-center py-3 gap-1', i < 3 && 'border-r-2 border-ink')}>
+                <View className="h-5 w-6 bg-divider" />
+                <View className="h-2 w-12 bg-divider" />
               </View>
             ))}
           </View>
-          {[0, 1, 2, 3, 4].map(i => <SkeletonRow key={i} i={i} />)}
+        </View>
+
+        {/* === RIGHT MAIN SKELETON === */}
+        <View className="lg:flex-1 lg:self-stretch">
+          <View className="flex-row items-center gap-3 border-b-2 border-ink px-4 lg:px-6 py-3">
+            <View className="h-2 w-10 bg-divider" />
+            <View className="h-3 flex-1 bg-divider" />
+          </View>
+          <View className="flex-row border-b-2 border-ink">
+            {[0, 1, 2, 3, 4].map(i => (
+              <View key={i} className={cn('flex-1 px-3 lg:px-5 h-11 lg:h-12 justify-center', i < 4 && 'border-r border-divider')}>
+                <View className="h-3 w-14 bg-divider" />
+              </View>
+            ))}
+          </View>
+          <View className="flex-row items-center justify-between border-b border-divider px-4 lg:px-6 py-3">
+            <View className="flex-row items-center gap-3">
+              <View className="h-2 w-10 bg-divider" />
+              <View className="h-6 w-40 bg-divider" />
+            </View>
+            <View className="hidden lg:flex h-2 w-24 bg-divider" />
+          </View>
+          <View className="bg-ink/[0.03] border-b-2 border-ink px-4 lg:px-6 py-2.5">
+            <View className="h-2 w-32 bg-divider" />
+          </View>
+          {[0, 1, 2, 3, 4, 5].map(i => <SkeletonRow key={i} />)}
         </View>
       </View>
     </ScrollView>
