@@ -9,7 +9,9 @@
       "maxDuration": 30
     }
   },
-  "rewrites": [
-    { "source": "/results/:id", "destination": "/results/[id]" }
+  "routes": [
+    { "src": "^/results/([^/]+)$", "dest": "/results/[id].html" },
+    { "handle": "filesystem" },
+    { "src": "^/(.*)$", "dest": "/index.html" }
   ]
 }
