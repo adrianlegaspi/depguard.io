@@ -6,7 +6,8 @@
     "start": "expo start --port 1212",
     "android": "expo start --android --port 1212",
     "ios": "expo start --ios --port 1212",
-    "web": "expo start --web --port 1212"
+    "web": "expo start --web --port 1212",
+    "build": "expo export --platform web"
   },
   "dependencies": {
     "@babel/runtime": "^7.29.2",
