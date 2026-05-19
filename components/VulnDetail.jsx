@@ -4,6 +4,7 @@ import { SevBadge } from './SevBadge';
 import { CvssVector } from './CvssVector';
 import { EpssBar } from './EpssBar';
 import { MarkdownBody } from './MarkdownBody';
+import { VulnRecommendations } from './VulnRecommendations';
 import { Badge } from './ui/badge';
 import { parseCvss } from '../lib/cvss';
 import { fmtDate, cn, severityGlyph } from '../lib/utils';
@@ -27,7 +28,7 @@ function cleanDetailsMarkdown(details) {
     .trim();
 }
 
-export function VulnDetail({ vuln }) {
+export function VulnDetail({ vuln, packageInfo }) {
   const { cvss, cwes, aliases, fixedVersion } = vuln;
   const cveId = aliases.find(a => a.startsWith('CVE-')) ?? vuln.id;
   const parsed = parseCvss(cvss.vector, cvss.score);
@@ -120,6 +121,8 @@ export function VulnDetail({ vuln }) {
           <MarkdownBody>{cleanedDetails}</MarkdownBody>
         </View>
       ) : null}
+
+      <VulnRecommendations vuln={vuln} packageInfo={packageInfo} />
 
       {vuln.references.length > 0 && (
         <View className="px-4 lg:px-6 py-3 border-t border-divider">

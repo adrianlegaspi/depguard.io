@@ -25,6 +25,17 @@ export default function VulnDetailScreen() {
     );
   }, [result, id]);
 
+  const packageInfo = React.useMemo(() => {
+    if (!vuln) return null;
+    const eco = ecosystem ?? result?.ecosystem ?? 'unknown';
+    if (vuln._pkg) {
+      const at = vuln._pkg.lastIndexOf('@');
+      const pkgName = at > 0 ? vuln._pkg.slice(0, at) : vuln._pkg;
+      return { name: pkgName, ecosystem: eco };
+    }
+    return { name: name ?? 'unknown', ecosystem: eco };
+  }, [vuln, name, ecosystem, result]);
+
   const pkgLabel = name ? `${name}${version ? `@${version}` : ''}` : 'results';
 
   return (
@@ -107,7 +118,7 @@ export default function VulnDetailScreen() {
           {vuln && name && ecosystem && (
             <PackageHealth name={name} version={version || ''} ecosystem={ecosystem} variant="compact" />
           )}
-          {vuln && <VulnDetail vuln={vuln} />}
+          {vuln && <VulnDetail vuln={vuln} packageInfo={packageInfo} />}
 
           <View className="h-8" />
         </View>
