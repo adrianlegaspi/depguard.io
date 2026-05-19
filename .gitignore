@@ -53,3 +53,5 @@ lerna-debug.log*
 
 # Misc
 .claude/
+
+.vercel
