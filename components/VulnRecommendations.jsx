@@ -1,48 +1,69 @@
 import * as React from 'react';
 import { View, Text, Pressable } from 'react-native';
-import { Badge } from './ui/badge';
+import { ShieldCheck, Lightbulb, AlertTriangle, RotateCw } from 'lucide-react-native';
 import { MarkdownBody } from './MarkdownBody';
 import { useVulnRecommendations } from '../hooks/useVulnRecommendations';
+import { cn } from '../lib/utils';
 
 const SUBSECTIONS = [
-  { key: 'prevention',     glyph: '◆', label: 'HOW TO PREVENT' },
-  { key: 'considerations', glyph: '◐', label: "WHAT TO CONSIDER" },
-  { key: 'remediation',    glyph: '⚠', label: "IF YOU'RE AFFECTED" },
+  { key: 'prevention',     Icon: ShieldCheck,   label: 'HOW TO PREVENT',     number: '01' },
+  { key: 'considerations', Icon: Lightbulb,     label: 'WHAT TO CONSIDER',   number: '02' },
+  { key: 'remediation',    Icon: AlertTriangle, label: "IF YOU'RE AFFECTED", number: '03' },
 ];
+
+function remediationBarColor(severity) {
+  switch (severity) {
+    case 'CRITICAL': return 'bg-critical';
+    case 'HIGH':     return 'bg-high';
+    case 'MEDIUM':   return 'bg-medium';
+    case 'LOW':      return 'bg-low';
+    default:         return 'bg-ink';
+  }
+}
 
 function SkeletonBar({ width = 'w-full' }) {
   return <View className={`bg-ink/10 h-3 ${width} mb-2`} />;
 }
 
-function SubsectionSkeleton({ glyph, label }) {
+function SectionRow({ Icon, label, number, barColor, children }) {
   return (
-    <View className="px-4 lg:px-6 py-3 border-t border-divider">
-      <View className="flex-row items-center gap-2 mb-2">
-        <Text className="font-mono-bold text-[10px] text-ink">{glyph}</Text>
-        <Text className="font-mono-bold text-[10px] text-ink uppercase tracking-eyebrow">{label}</Text>
+    <View className="flex-row items-stretch border-t border-divider">
+      <View className={cn('w-2', barColor)} />
+      <View className="flex-1 px-4 lg:px-6 py-3">
+        <View className="flex-row items-center gap-2 mb-2">
+          <Icon size={14} color="#0a0a0a" strokeWidth={1.75} />
+          <Text className="font-mono-bold text-[10px] text-muted uppercase tracking-eyebrow tabular-nums">
+            {number}
+          </Text>
+          <Text className="font-mono-bold text-[10px] text-ink uppercase tracking-eyebrow">
+            {label}
+          </Text>
+        </View>
+        {children}
       </View>
-      <SkeletonBar />
-      <SkeletonBar width="w-11/12" />
-      <SkeletonBar width="w-4/5" />
     </View>
   );
 }
 
-function Subsection({ glyph, label, body }) {
+function SubsectionSkeleton({ Icon, label, number, barColor }) {
   return (
-    <View className="px-4 lg:px-6 py-3 border-t border-divider">
-      <View className="flex-row items-center gap-2 mb-2">
-        <Text className="font-mono-bold text-[10px] text-ink">{glyph}</Text>
-        <Text className="font-mono-bold text-[10px] text-ink uppercase tracking-eyebrow">{label}</Text>
-      </View>
+    <SectionRow Icon={Icon} label={label} number={number} barColor={barColor}>
+      <SkeletonBar />
+      <SkeletonBar width="w-11/12" />
+      <SkeletonBar width="w-4/5" />
+    </SectionRow>
+  );
+}
+
+function Subsection({ Icon, label, number, barColor, body }) {
+  return (
+    <SectionRow Icon={Icon} label={label} number={number} barColor={barColor}>
       <MarkdownBody>{body}</MarkdownBody>
-    </View>
+    </SectionRow>
   );
 }
 
 /**
- * AI-generated remediation guidance for a single vulnerability.
- *
  * @param {{
  *   vuln: import('../services/osv').NormalizedVuln,
  *   packageInfo: { name: string, ecosystem: string }
@@ -50,18 +71,26 @@ function Subsection({ glyph, label, body }) {
  */
 export function VulnRecommendations({ vuln, packageInfo }) {
   const { data, error, isLoading, mutate } = useVulnRecommendations(vuln, packageInfo);
+  const urgentBar = remediationBarColor(vuln?.cvss?.severity);
+
+  const barFor = (key) => (key === 'remediation' ? urgentBar : 'bg-divider');
 
   return (
     <View className="border-t-2 border-ink">
-      <View className="flex-row items-center justify-between px-4 lg:px-6 py-3">
+      <View className="px-4 lg:px-6 py-3">
         <Text className="font-mono-bold text-[10px] text-ink uppercase tracking-eyebrow">
-          AI Recommendations
+          Remediation Playbook
         </Text>
-        <Badge variant="outline" size="sm">AI · BETA</Badge>
       </View>
 
       {isLoading && !data && SUBSECTIONS.map(s => (
-        <SubsectionSkeleton key={s.key} glyph={s.glyph} label={s.label} />
+        <SubsectionSkeleton
+          key={s.key}
+          Icon={s.Icon}
+          label={s.label}
+          number={s.number}
+          barColor={barFor(s.key)}
+        />
       ))}
 
       {error && !data && (
@@ -75,23 +104,31 @@ export function VulnRecommendations({ vuln, packageInfo }) {
           <Pressable
             onPress={() => mutate()}
             accessibilityRole="button"
-            className="self-start border-2 border-ink px-3 py-1 web:cursor-pointer hover:bg-ink/5 active:bg-ink/10"
+            className="self-start flex-row items-center gap-2 border-2 border-ink px-3 py-1 web:cursor-pointer hover:bg-ink/5 active:bg-ink/10"
           >
             <Text className="font-mono-bold text-xs text-ink uppercase tracking-widest">
-              RETRY ↻
+              RETRY
             </Text>
+            <RotateCw size={12} color="#0a0a0a" strokeWidth={2} />
           </Pressable>
         </View>
       )}
 
       {data && SUBSECTIONS.map(s => (
-        <Subsection key={s.key} glyph={s.glyph} label={s.label} body={data[s.key]} />
+        <Subsection
+          key={s.key}
+          Icon={s.Icon}
+          label={s.label}
+          number={s.number}
+          barColor={barFor(s.key)}
+          body={data[s.key]}
+        />
       ))}
 
       {data && (
         <View className="px-4 lg:px-6 py-2 border-t border-divider">
           <Text className="font-mono text-[10px] text-muted">
-            Generated by AI — verify before acting on production systems.
+            Synthesized from public advisories — verify in production.
           </Text>
         </View>
       )}
