@@ -1,4 +1,5 @@
 {
+  "framework": null,
   "installCommand": "pnpm install --frozen-lockfile",
   "buildCommand": "pnpm exec expo export --platform web",
   "outputDirectory": "dist",
