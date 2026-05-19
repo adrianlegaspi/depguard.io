@@ -1,5 +1,6 @@
 {
-  "buildCommand": "expo export --platform web",
+  "installCommand": "pnpm install --frozen-lockfile",
+  "buildCommand": "pnpm exec expo export --platform web",
   "outputDirectory": "dist",
   "functions": {
     "api/recommendations.py": {

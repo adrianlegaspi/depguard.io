@@ -2,6 +2,7 @@
   "name": "depguard",
   "version": "1.0.0",
   "main": "expo-router/entry",
+  "packageManager": "pnpm@10.21.0",
   "scripts": {
     "start": "expo start --port 1212",
     "android": "expo start --android --port 1212",
