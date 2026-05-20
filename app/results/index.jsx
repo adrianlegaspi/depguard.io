@@ -428,36 +428,6 @@ export default function ResultsScreen() {
             {/* === RIGHT MAIN === */}
             <View className="lg:flex-1 lg:self-stretch">
 
-              {/* Widget-level filter — lives with the list it filters, not in the global header */}
-              <View
-                className="flex-row items-center gap-3 border-b-2 border-ink px-4 lg:px-6"
-                style={{ flexGrow: 0, flexShrink: 0 }}
-              >
-                <Text className="font-mono-bold text-[10px] text-ink uppercase tracking-eyebrow">
-                  Filter
-                </Text>
-                <Input
-                  value={searchText}
-                  onChangeText={setSearchText}
-                  placeholder="CVE ID, alias, or keyword…"
-                  autoCapitalize="none"
-                  autoCorrect={false}
-                  accessibilityLabel="Filter vulnerabilities by CVE ID, alias, or keyword"
-                  className="flex-1 border-0 px-0 py-2.5"
-                />
-                {searchText.length > 0 && (
-                  <Pressable
-                    onPress={() => setSearchText('')}
-                    accessibilityRole="button"
-                    accessibilityLabel="Clear filter"
-                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                    className="border border-ink px-2 py-0.5 web:cursor-pointer hover:bg-ink/5 active:bg-ink/10"
-                  >
-                    <Text className="font-mono-bold text-[10px] text-ink">✕</Text>
-                  </Pressable>
-                )}
-              </View>
-
               {/* Severity filter tabs — compact strip, content-height */}
               <View
                 className="flex-row border-b-2 border-ink"
@@ -535,6 +505,47 @@ export default function ResultsScreen() {
                 <Text className="hidden lg:flex font-mono text-xs text-muted tabular-nums">
                   {visibleCount} of {totalVulns} shown
                 </Text>
+              </View>
+
+              {/* Filter / Search — prominent, full-width row */}
+              <View
+                className="border-b-2 border-ink bg-ink/[0.03] px-4 lg:px-6 py-3 lg:py-4"
+                style={{ flexGrow: 0, flexShrink: 0 }}
+              >
+                <View className="flex-row items-center gap-2 lg:gap-3">
+                  <Text
+                    className="font-mono-bold text-base lg:text-lg text-ink"
+                    accessibilityElementsHidden
+                    importantForAccessibility="no"
+                  >
+                    ⌕
+                  </Text>
+                  <Input
+                    value={searchText}
+                    onChangeText={setSearchText}
+                    placeholder="Search CVE ID, alias, or keyword…"
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                    accessibilityLabel="Filter vulnerabilities by CVE ID, alias, or keyword"
+                    className="flex-1 border-2 border-ink bg-paper px-3 lg:px-4 h-11 lg:h-12 text-sm lg:text-base"
+                  />
+                  {searchText.length > 0 && (
+                    <Pressable
+                      onPress={() => setSearchText('')}
+                      accessibilityRole="button"
+                      accessibilityLabel="Clear filter"
+                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                      className="border-2 border-ink h-11 lg:h-12 px-3 justify-center web:cursor-pointer hover:bg-ink/5 active:bg-ink/10"
+                    >
+                      <Text className="font-mono-bold text-xs text-ink uppercase tracking-widest">Clear</Text>
+                    </Pressable>
+                  )}
+                </View>
+                {searchText.length > 0 && (
+                  <Text className="font-mono text-[10px] text-muted uppercase tracking-eyebrow tabular-nums mt-2 lg:mt-2.5">
+                    {visibleCount} of {totalVulns} match “{searchText}”
+                  </Text>
+                )}
               </View>
 
               {/* Vuln List — split into FIXED / UNFIXED sections */}
