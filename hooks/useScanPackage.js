@@ -1,5 +1,7 @@
+import { useMemo } from 'react';
 import useSWR from 'swr';
 import { scanPackage, scanPackages } from '../services/osv';
+import { fetchEpssBatch, extractCveAliases, pickBestCveEpss } from '../services/epss';
 
 function mergeBatch(results, fallbackEcosystem) {
   return results.reduce(
@@ -24,20 +26,32 @@ function mergeBatch(results, fallbackEcosystem) {
   );
 }
 
+function collectAllCves(vulns) {
+  const set = new Set();
+  for (const v of vulns) {
+    for (const cve of extractCveAliases(v)) set.add(cve);
+  }
+  return [...set].sort();
+}
+
 /**
- * SWR-backed package scan. Same cache key is shared between the list and the
- * detail page so navigating /results -> /results/[id] is instant when the
- * scan is already in cache, and falls back to a real OSV request when the
- * detail page is entered directly via URL.
+ * SWR-backed package scan with FIRST.org EPSS enrichment.
+ *
+ * Two cache layers:
+ *   1. scan: ['scan', ecosystem, name, version] or ['scan-batch', batchJson]
+ *   2. epss: ['epss', <sorted comma-joined CVE list>]  — shared across scans
+ *
+ * EPSS layer is independent: if FIRST.org times out, the scan still renders
+ * with whatever OSV's embed gave us (or null).
  *
  * @param {{ name?: string, version?: string, ecosystem?: string, batchJson?: string }} params
  */
 export function useScanPackage({ name, version, ecosystem, batchJson }) {
-  const key = batchJson
+  const scanKey = batchJson
     ? ['scan-batch', batchJson]
     : (name && ecosystem ? ['scan', ecosystem, name, version || ''] : null);
 
-  return useSWR(key, async () => {
+  const scan = useSWR(scanKey, async () => {
     if (batchJson) {
       const packages = JSON.parse(batchJson);
       const results = await scanPackages(packages);
@@ -45,4 +59,44 @@ export function useScanPackage({ name, version, ecosystem, batchJson }) {
     }
     return scanPackage(name, version || '', ecosystem);
   });
+
+  const cveList = scan.data ? collectAllCves(scan.data.vulns) : [];
+  const epssKey = cveList.length > 0 ? ['epss', cveList.join(',')] : null;
+
+  const epss = useSWR(
+    epssKey,
+    async ([, joined]) => fetchEpssBatch(joined.split(',')),
+    {
+      dedupingInterval: 43_200_000,
+      revalidateOnFocus: false,
+    }
+  );
+
+  const merged = useMemo(() => {
+    if (!scan.data) return scan.data;
+    if (!epss.data || epss.data.size === 0) return scan.data;
+    return {
+      ...scan.data,
+      vulns: scan.data.vulns.map(v => {
+        const cves = extractCveAliases(v);
+        const best = pickBestCveEpss(cves, epss.data);
+        if (!best) return v;
+        return {
+          ...v,
+          epss: {
+            percentile: best.percentile,
+            probability: best.epss,
+            date: best.date,
+            source: 'first.org',
+          },
+        };
+      }),
+    };
+  }, [scan.data, epss.data]);
+
+  return {
+    ...scan,
+    data: merged,
+    epssEnriching: epss.isLoading,
+  };
 }

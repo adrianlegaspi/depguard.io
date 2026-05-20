@@ -42,7 +42,15 @@ const OSV_BASE = 'https://api.osv.dev/v1';
  * @property {AffectedRange[]} ranges
  * @property {string|null} fixedVersion
  * @property {{ type: string, url: string }[]} references
- * @property {string|null} epss
+ * @property {EpssScore|null} epss
+ */
+
+/**
+ * @typedef {Object} EpssScore
+ * @property {number|null} percentile   0–1, rank vs all scored CVEs
+ * @property {number|null} probability  0–1, raw daily exploit probability
+ * @property {string|null} date         "YYYY-MM-DD" — when source computed score
+ * @property {'first.org'|'osv'|null} source
  */
 
 /**
@@ -128,7 +136,29 @@ function normalizeVuln(raw) {
     ranges,
     fixedVersion,
     references: (raw.references ?? []).map(r => ({ type: r.type ?? 'WEB', url: r.url })),
-    epss: raw.database_specific?.epss?.percentile ?? null,
+    epss: normalizeOsvEpss(raw.database_specific?.epss),
+  };
+}
+
+/**
+ * Build an EpssScore from OSV's embedded `database_specific.epss` block.
+ * OSV's embed includes `score` (raw probability) and `percentile` but no date.
+ * Returns null when neither field is present — keeps null state explicit.
+ * @param {{ score?: number|string, percentile?: number|string } | undefined} embed
+ * @returns {import('./osv').EpssScore | null}
+ */
+function normalizeOsvEpss(embed) {
+  if (!embed) return null;
+  const probability = embed.score != null ? Number(embed.score) : null;
+  const percentile = embed.percentile != null ? Number(embed.percentile) : null;
+  if (probability == null && percentile == null) return null;
+  if (probability != null && !Number.isFinite(probability)) return null;
+  if (percentile != null && !Number.isFinite(percentile)) return null;
+  return {
+    percentile: percentile ?? null,
+    probability: probability ?? null,
+    date: null,
+    source: 'osv',
   };
 }
 

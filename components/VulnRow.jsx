@@ -64,6 +64,13 @@ export function VulnRow({ vuln, onPress }) {
       </View>
 
       <View className="flex-row items-center pr-3 gap-2 shrink-0">
+        {vuln.epss?.percentile != null && vuln.epss.percentile >= 0.70 && (
+          <View className="border border-critical bg-critical/10 px-1.5 py-0.5">
+            <Text className="font-mono-bold text-[10px] text-critical tabular-nums">
+              EPSS {(vuln.epss.percentile * 100).toFixed(1)}%
+            </Text>
+          </View>
+        )}
         {fixedVersion ? (
           <View className="border border-ink px-1.5 py-0.5">
             <Text className="font-mono text-[10px] text-ink tabular-nums">→ {fixedVersion}</Text>

@@ -7,13 +7,48 @@ import { MarkdownBody } from './MarkdownBody';
 import { VulnRecommendations } from './VulnRecommendations';
 import { Badge } from './ui/badge';
 import { parseCvss } from '../lib/cvss';
-import { fmtDate, cn, severityGlyph } from '../lib/utils';
+import { cn, severityGlyph } from '../lib/utils';
 
-function MetaCell({ label, value, last }) {
+const SEV_TEXT = {
+  CRITICAL: 'text-critical',
+  HIGH:     'text-high',
+  MEDIUM:   'text-ink',
+  LOW:      'text-low',
+  NONE:     'text-muted',
+};
+
+function fmtIsoDate(iso) {
+  if (!iso) return null;
+  const m = String(iso).match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (m) return `${m[1]}-${m[2]}-${m[3]}`;
+  try {
+    const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return iso;
+    const y = d.getUTCFullYear();
+    const mo = String(d.getUTCMonth() + 1).padStart(2, '0');
+    const dy = String(d.getUTCDate()).padStart(2, '0');
+    return `${y}-${mo}-${dy}`;
+  } catch {
+    return iso;
+  }
+}
+
+function MetaCell({ label, value, last, tone, mono }) {
   return (
-    <View className={cn('flex-1 px-3 py-2', !last && 'border-r-2 border-ink')}>
-      <Text className="font-mono-bold text-[10px] text-ink uppercase tracking-eyebrow mb-1">{label}</Text>
-      <Text className="font-mono-bold text-xs text-ink tabular-nums" numberOfLines={2}>{value || '—'}</Text>
+    <View className={cn('flex-1 px-3 py-2', !last && 'border-r border-divider')}>
+      <Text className="font-mono text-[10px] text-muted uppercase tracking-eyebrow mb-1">
+        {label}
+      </Text>
+      <Text
+        className={cn(
+          'leading-tight',
+          mono ? 'font-mono-bold text-sm tabular-nums' : 'font-display text-base',
+          tone ?? 'text-ink'
+        )}
+        numberOfLines={2}
+      >
+        {value || '—'}
+      </Text>
     </View>
   );
 }
@@ -33,10 +68,10 @@ export function VulnDetail({ vuln, packageInfo }) {
   const cveId = aliases.find(a => a.startsWith('CVE-')) ?? vuln.id;
   const parsed = parseCvss(cvss.vector, cvss.score);
   const metas = [
-    { label: 'Severity',  value: cvss.severity },
-    { label: 'Published', value: fmtDate(vuln.published) },
-    { label: 'Fixed In',  value: fixedVersion ?? 'N/A' },
-    ...(cwes.length > 0 ? [{ label: 'CWE', value: cwes[0] }] : []),
+    { label: 'Severity',  value: cvss.severity, tone: SEV_TEXT[cvss.severity] },
+    { label: 'Published', value: fmtIsoDate(vuln.published), mono: true },
+    { label: 'Fixed In',  value: fixedVersion ?? 'N/A', mono: true },
+    ...(cwes.length > 0 ? [{ label: 'CWE', value: cwes[0], mono: true }] : []),
   ];
   const headerOnDark = cvss.severity !== 'MEDIUM' && cvss.severity !== 'NONE';
   const cleanedDetails = cleanDetailsMarkdown(vuln.details);
@@ -114,15 +149,22 @@ export function VulnDetail({ vuln, packageInfo }) {
             <Text className="font-display text-xl lg:text-2xl text-ink leading-tight">{vuln.summary}</Text>
           </View>
 
-          <View className="flex-row border-t-2 border-b-2 border-ink">
+          <View className="flex-row border-t-2 border-b-2 border-ink bg-paper">
             {metas.map((m, i) => (
-              <MetaCell key={m.label} label={m.label} value={m.value} last={i === metas.length - 1} />
+              <MetaCell
+                key={m.label}
+                label={m.label}
+                value={m.value}
+                tone={m.tone}
+                mono={m.mono}
+                last={i === metas.length - 1}
+              />
             ))}
           </View>
 
-          {vuln.epss != null && (
+          {vuln.epss != null && (vuln.epss.percentile != null || vuln.epss.probability != null) && (
             <View className="px-4 lg:px-6 pt-3 pb-3 border-b border-divider">
-              <EpssBar percentile={vuln.epss} />
+              <EpssBar epss={vuln.epss} />
             </View>
           )}
 
