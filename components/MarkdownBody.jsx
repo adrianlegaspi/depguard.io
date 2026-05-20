@@ -5,7 +5,7 @@ const styles = {
   body: {
     fontFamily: 'JetBrainsMono_400Regular',
     fontSize: 13,
-    lineHeight: 20,
+    lineHeight: 18,
     color: '#000000',
   },
   heading1: {
@@ -31,10 +31,12 @@ const styles = {
   },
   code_inline: {
     fontFamily: 'JetBrainsMono_400Regular',
-    fontSize: 11,
+    fontSize: 12,
+    lineHeight: 16,
     backgroundColor: 'rgba(0,0,0,0.06)',
     borderRadius: 2,
-    paddingHorizontal: 3,
+    paddingHorizontal: 4,
+    paddingVertical: 0,
     color: '#000000',
   },
   fence: {

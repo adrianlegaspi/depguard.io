@@ -171,7 +171,7 @@ export default function VulnDetailScreen() {
       </View>
 
       <ScrollView className="flex-1">
-        <View className="w-full lg:max-w-5xl lg:mx-auto lg:border-l-2 lg:border-r-2 lg:border-ink">
+        <View className="w-full lg:max-w-7xl lg:mx-auto lg:border-l-2 lg:border-r-2 lg:border-ink">
 
           {/* Breadcrumb */}
           <View className="flex-row items-center px-4 lg:px-6 py-3 border-b border-divider">

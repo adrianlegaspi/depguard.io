@@ -11,7 +11,17 @@ const DEFAULT_ENDPOINT = '/api/recommendations';
 
 function endpoint() {
   const url = process.env.EXPO_PUBLIC_RECOMMENDATIONS_API_URL;
-  return url && url.length > 0 ? url : DEFAULT_ENDPOINT;
+  if (!url || url.length === 0) return DEFAULT_ENDPOINT;
+  // Defensive: a localhost URL baked into the bundle is useless once deployed.
+  // If we're running on the web and the page isn't on localhost, fall back to
+  // the same-origin relative endpoint.
+  if (typeof window !== 'undefined' && /^https?:\/\/localhost/i.test(url)) {
+    const host = window.location?.hostname;
+    if (host && host !== 'localhost' && host !== '127.0.0.1') {
+      return DEFAULT_ENDPOINT;
+    }
+  }
+  return url;
 }
 
 /**

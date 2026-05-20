@@ -41,6 +41,19 @@ export function VulnDetail({ vuln, packageInfo }) {
   const headerOnDark = cvss.severity !== 'MEDIUM' && cvss.severity !== 'NONE';
   const cleanedDetails = cleanDetailsMarkdown(vuln.details);
 
+  const osvButton = (
+    <Pressable
+      className="items-center py-3 web:cursor-pointer hover:bg-ink/5 active:bg-ink/10"
+      onPress={() => Linking.openURL(`https://osv.dev/vulnerability/${vuln.id}`)}
+      accessibilityRole="link"
+      accessibilityLabel={`View ${vuln.id} on OSV.dev`}
+    >
+      <Text className="font-mono-bold text-xs text-ink uppercase tracking-widest">
+        VIEW ON OSV ↗
+      </Text>
+    </Pressable>
+  );
+
   return (
     <View className="bg-paper">
       <View
@@ -85,74 +98,74 @@ export function VulnDetail({ vuln, packageInfo }) {
         <SevBadge severity={cvss.severity} />
       </View>
 
-      {aliases.length > 0 && (
-        <View className="flex-row flex-wrap gap-1 px-4 lg:px-6 py-2 border-b border-divider">
-          {aliases.map(a => (
-            <Badge key={a} variant="outline">
-              <Text className="font-mono text-xs text-muted">{a}</Text>
-            </Badge>
-          ))}
+      <View className="lg:flex-row lg:items-stretch">
+        <View className="lg:flex-1 lg:border-r-2 lg:border-ink">
+          {aliases.length > 0 && (
+            <View className="flex-row flex-wrap gap-1 px-4 lg:px-6 py-2 border-b border-divider">
+              {aliases.map(a => (
+                <Badge key={a} variant="outline">
+                  <Text className="font-mono text-xs text-muted">{a}</Text>
+                </Badge>
+              ))}
+            </View>
+          )}
+
+          <View className="px-4 lg:px-6 pt-3 pb-3">
+            <Text className="font-display text-xl lg:text-2xl text-ink leading-tight">{vuln.summary}</Text>
+          </View>
+
+          <View className="flex-row border-t-2 border-b-2 border-ink">
+            {metas.map((m, i) => (
+              <MetaCell key={m.label} label={m.label} value={m.value} last={i === metas.length - 1} />
+            ))}
+          </View>
+
+          {vuln.epss != null && (
+            <View className="px-4 lg:px-6 pt-3 pb-3 border-b border-divider">
+              <EpssBar percentile={vuln.epss} />
+            </View>
+          )}
+
+          {parsed.parts && Object.keys(parsed.parts).length > 0 && (
+            <CvssVector parts={parsed.parts} />
+          )}
+
+          {cleanedDetails ? (
+            <View className="px-4 lg:px-6 py-3 border-t border-divider">
+              <Text className="font-mono-bold text-[10px] text-ink uppercase tracking-eyebrow mb-2">Summary</Text>
+              <MarkdownBody>{cleanedDetails}</MarkdownBody>
+            </View>
+          ) : null}
+
+          {vuln.references.length > 0 && (
+            <View className="px-4 lg:px-6 py-3 border-t border-divider">
+              <Text className="font-mono-bold text-[10px] text-ink uppercase tracking-eyebrow mb-2">References</Text>
+              {vuln.references.slice(0, 6).map((ref, i) => (
+                <Pressable
+                  key={i}
+                  onPress={() => Linking.openURL(ref.url)}
+                  accessibilityRole="link"
+                  className="mb-1 web:cursor-pointer"
+                >
+                  <Text className="font-mono text-xs text-low underline" numberOfLines={1}>
+                    [{ref.type}] {ref.url}
+                  </Text>
+                </Pressable>
+              ))}
+            </View>
+          )}
+
+          <View className="hidden lg:flex border-t-2 border-ink">
+            {osvButton}
+          </View>
         </View>
-      )}
 
-      <View className="px-4 lg:px-6 pt-3 pb-3">
-        <Text className="font-display text-xl lg:text-2xl text-ink leading-tight">{vuln.summary}</Text>
-      </View>
-
-      <View className="flex-row border-t-2 border-b-2 border-ink">
-        {metas.map((m, i) => (
-          <MetaCell key={m.label} label={m.label} value={m.value} last={i === metas.length - 1} />
-        ))}
-      </View>
-
-      {vuln.epss != null && (
-        <View className="px-4 lg:px-6 pt-3 pb-3 border-b border-divider">
-          <EpssBar percentile={vuln.epss} />
+        <View className="lg:w-[380px] xl:w-[420px] lg:self-start web:lg:sticky web:lg:top-0 web:lg:max-h-screen web:lg:overflow-y-auto">
+          <VulnRecommendations vuln={vuln} packageInfo={packageInfo} />
+          <View className="lg:hidden border-t-2 border-ink">
+            {osvButton}
+          </View>
         </View>
-      )}
-
-      {parsed.parts && Object.keys(parsed.parts).length > 0 && (
-        <CvssVector parts={parsed.parts} />
-      )}
-
-      {cleanedDetails ? (
-        <View className="px-4 lg:px-6 py-3 border-t border-divider">
-          <Text className="font-mono-bold text-[10px] text-ink uppercase tracking-eyebrow mb-2">Summary</Text>
-          <MarkdownBody>{cleanedDetails}</MarkdownBody>
-        </View>
-      ) : null}
-
-      <VulnRecommendations vuln={vuln} packageInfo={packageInfo} />
-
-      {vuln.references.length > 0 && (
-        <View className="px-4 lg:px-6 py-3 border-t border-divider">
-          <Text className="font-mono-bold text-[10px] text-ink uppercase tracking-eyebrow mb-2">References</Text>
-          {vuln.references.slice(0, 6).map((ref, i) => (
-            <Pressable
-              key={i}
-              onPress={() => Linking.openURL(ref.url)}
-              accessibilityRole="link"
-              className="mb-1 web:cursor-pointer"
-            >
-              <Text className="font-mono text-xs text-low underline" numberOfLines={1}>
-                [{ref.type}] {ref.url}
-              </Text>
-            </Pressable>
-          ))}
-        </View>
-      )}
-
-      <View className="border-t-2 border-ink">
-        <Pressable
-          className="items-center py-3 web:cursor-pointer hover:bg-ink/5 active:bg-ink/10"
-          onPress={() => Linking.openURL(`https://osv.dev/vulnerability/${vuln.id}`)}
-          accessibilityRole="link"
-          accessibilityLabel={`View ${vuln.id} on OSV.dev`}
-        >
-          <Text className="font-mono-bold text-xs text-ink uppercase tracking-widest">
-            VIEW ON OSV ↗
-          </Text>
-        </Pressable>
       </View>
     </View>
   );
