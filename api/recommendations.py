@@ -13,7 +13,7 @@ import os
 from datetime import datetime, timezone
 from http.server import BaseHTTPRequestHandler
 
-import google.generativeai as genai
+from google import genai
 from upstash_redis import Redis
 
 CACHE_PREFIX = "vuln-rec:v1:"
@@ -101,18 +101,18 @@ def _generate(body):
     if not api_key:
         raise RuntimeError("GEMINI_API_KEY not configured")
 
-    genai.configure(api_key=api_key)
-    model = genai.GenerativeModel(
-        model_name=MODEL_NAME,
-        system_instruction=SYSTEM_INSTRUCTION,
-        generation_config={
-            "response_mime_type": "application/json",
-            "response_schema": RESPONSE_SCHEMA,
-            "temperature": 0.4,
-        },
+    client = genai.Client(api_key=api_key)
+    response = client.models.generate_content(
+        model=MODEL_NAME,
+        config=genai.types.GenerateContentConfig(
+            system_instruction=SYSTEM_INSTRUCTION,
+            response_mime_type="application/json",
+            response_schema=RESPONSE_SCHEMA,
+            temperature=0.4,
+        ),
+        contents=_build_prompt(body),
     )
-    result = model.generate_content(_build_prompt(body))
-    parsed = json.loads(result.text)
+    parsed = json.loads(response.text)
     return {
         "prevention": parsed["prevention"],
         "considerations": parsed["considerations"],
