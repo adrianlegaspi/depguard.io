@@ -78,7 +78,7 @@ export function VulnDetail({ vuln, packageInfo }) {
 
   const osvButton = (
     <Pressable
-      className="items-center py-3 web:cursor-pointer hover:bg-ink/5 active:bg-ink/10"
+      className="w-full min-h-[38px] flex-row items-center justify-center border-2 border-ink px-5 web:cursor-pointer hover:bg-ink/10 active:bg-ink/20"
       onPress={() => Linking.openURL(`https://osv.dev/vulnerability/${vuln.id}`)}
       accessibilityRole="link"
       accessibilityLabel={`View ${vuln.id} on OSV.dev`}
@@ -197,14 +197,14 @@ export function VulnDetail({ vuln, packageInfo }) {
             </View>
           )}
 
-          <View className="hidden lg:flex border-t-2 border-ink">
+          <View className="hidden lg:flex lg:mt-auto">
             {osvButton}
           </View>
         </View>
 
         <View className="lg:w-[380px] xl:w-[420px] lg:self-start web:lg:sticky web:lg:top-0 web:lg:max-h-screen web:lg:overflow-y-auto">
           <VulnRecommendations vuln={vuln} packageInfo={packageInfo} />
-          <View className="lg:hidden border-t-2 border-ink">
+          <View className="lg:hidden">
             {osvButton}
           </View>
         </View>
