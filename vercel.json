@@ -9,7 +9,7 @@
     "api/recommendations.py": {
       "runtime": "@vercel/python@6.42.0",
       "maxDuration": 30,
-      "excludeFiles": "{**/node_modules/**,dist/**,.expo/**,.vercel/**,.claude/**,app/**,assets/**,components/**,hooks/**,lib/**,services/**,*.config.js,*.config.ts,package.json,pnpm-lock.yaml,tsconfig.json,app.json,global.css,*.md,public/**,.git/**,**/__pycache__/**,**/.venv/**,**/venv/**}"
+      "excludeFiles": "{**/{node_modules,__pycache__,.venv,venv}/**,{dist,.expo,.vercel,.claude,app,assets,components,hooks,lib,services,public,.git}/**,*.config.{js,ts},*.md,package.json,pnpm-lock.yaml,tsconfig.json,app.json,global.css}"
     }
   },
   "rewrites": [
